@@ -112,13 +112,13 @@ extractRootfs () {
     fileext=`echo  $1  | sed 's/.*\.//'`
     banner "File Extension ${fileext}"
     if [ ${fileext} == "bz2" ]; then 
-        sudo tar xjf ../$1
+        sudo tar xvjf ../$1
     elif [ ${fileext} == "gz" ]; then 
-        sudo tar xzf ../$1
+        sudo tar xvzf ../$1
     elif [ ${fileext} == "7z" ] | [ ${fileext} == "lzma" ]; then 
         sudo 7z x ../$1
     elif [ ${fileext} == "xz" ]; then
-        sudo tar xJf ../$1
+        sudo tar xvJf ../$1
     else
 	echo "Unknown file extension: ${fileext}"
         popd
