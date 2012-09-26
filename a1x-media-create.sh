@@ -60,16 +60,16 @@ partitionSD () {
         subdevice="${1}p"
     fi
 
-	echo "Delete Existing Partition Table"
+	banner "Delete Existing Partition Table"
 	sudo dd if=/dev/zero of=$1 bs=1M count=1
 
-	echo "Creating Partitions"
+	banner "Creating Partitions"
 	sudo parted $1 --script mklabel msdos
 	if [ $? -ne 0 ]; then
 		echo "Failed to create label for $1"
 		exit 1
 	fi 
-	echo "Partition 1 - ${subdevice}1"
+	banner "Partition 1 - ${subdevice}1"
 	sudo parted $1 --script mkpart primary fat32 2048s 16MB
 	if [ $? -ne 0 ]; then
 		echo "Failed to create ${subdevice}1 partition" 
@@ -77,19 +77,19 @@ partitionSD () {
 	fi 
 	vfat_end=` sudo fdisk -lu $1 | grep ${subdevice}1 | awk '{ print $3 }' `
 	ext4_offset=`expr $vfat_end + 1`
-	echo "Partition 2 (Starts at sector No. $ext4_offset)"
+	banner "Partition 2 (Starts at sector No. $ext4_offset)"
 	sudo parted $1 --script mkpart primary ext4 ${ext4_offset}s -- -1
 	if [ $? -ne 0 ]; then
 		echo "Failed to create ${subdevice}2 partition"
 		exit 1
 	fi 
-	echo "Format Partition 1 to VFAT"
+	banner "Format Partition 1 to VFAT"
 	sudo mkfs.vfat -I ${subdevice}1
 	if [ $? -ne 0 ]; then
 		echo "Failed to format ${subdevice}1 partition"
 		exit 1
 	fi 
-	echo "Format Partition 2 to EXT-4"
+	banner "Format Partition 2 to EXT-4"
 	sudo mkfs.ext4  ${subdevice}2
 	if [ $? -ne 0 ]; then
 		echo "Failed to format ${subdevice}2 partition"
@@ -98,7 +98,7 @@ partitionSD () {
 }
 
 extractHWPack () {
-    echo "Extracting HW Pack $1"
+    banner "Extracting HW Pack $1"
     mkdir -p hwpack
     pushd hwpack
     7z x ../$1
@@ -106,11 +106,11 @@ extractHWPack () {
 }
 
 extractRootfs () {
-    echo "extracting Rootfs $1"
+    banner "extracting Rootfs $1"
     mkdir -p rootfs.tmp
     pushd rootfs.tmp
     fileext=`echo  $1  | sed 's/.*\.//'`
-    echo "File Extension ${fileext}"
+    banner "File Extension ${fileext}"
     if [ ${fileext} == "bz2" ]; then 
         sudo tar xjf ../$1
     elif [ ${fileext} == "gz" ]; then 
@@ -129,13 +129,13 @@ extractRootfs () {
 
 copyUbootSpl ()
 {	
-	echo "Copy U-Boot SPL to SD Card"
+	banner "Copy U-Boot SPL to SD Card"
 	sudo dd if=$2 bs=1024 of=$1 seek=8
 }
 
 copyUboot ()
 {	
-	echo "Copy U-Boot to SD Card"
+	banner "Copy U-Boot to SD Card"
 	sudo dd if=$2 bs=1024 of=$1 seek=32
 }
 
@@ -151,19 +151,19 @@ mountPartitions ()
         subdevice="${1}p"
     fi
 
-	echo "Mount SD card partitions"
+	banner "Mount SD card partitions"
 	mkdir -p mntSDvfat mntSDrootfs
 	if [ $? -ne 0 ]; then
 		echo "Failed to create SD card mount points"
 		cleanup
 	fi 
-	echo "Mount VFAT Parition (SD)" 
+	banner "Mount VFAT Parition (SD)" 
 	sudo mount ${subdevice}1 mntSDvfat
 	if [ $? -ne 0 ]; then
 		echo "Failed to mount VFAT partition (SD)"
 		cleanup
 	fi 
-	echo "Mount EXT4 Parition (SD)" 
+	banner "Mount EXT4 Parition (SD)" 
 	sudo mount ${subdevice}2 mntSDrootfs
 	if [ $? -ne 0 ]; then
 		echo "Failed to mount EXT4 partition (SD)"
@@ -192,7 +192,7 @@ umountPart() {
 
 copyData () 
 {
-	echo "Copy VFAT partition files to SD Card"
+	banner "Copy VFAT partition files to SD Card"
 	sudo cp hwpack/kernel/uImage mntSDvfat
 	if [ $? -ne 0 ]; then
 		echo "Failed to copy VFAT partition data to SD Card"
@@ -212,7 +212,7 @@ copyData ()
 	fi
 	 
         if [ ${hwpack_update_only} -eq 0 ]; then 
-	    echo "Copy rootfs partition files to SD Card"
+	    banner "Copy rootfs partition files to SD Card"
             if [ -d rootfs.tmp/etc ]; then
                echo "Standard rootfs"
 	       sudo cp -a rootfs.tmp/* mntSDrootfs
@@ -228,7 +228,7 @@ copyData ()
 		echo "Failed to copy rootfs partition data to SD Card"
 		cleanup
 	fi 
-        echo "Copy hwpack rootfs files"
+        banner "Copy hwpack rootfs files"
 	# Fedora uses a softlink for lib.  Adjust, if needed.
 	if [ -L mntSDrootfs/lib ]; then
 		# Find where it points.  For Fedora, we expect usr/lib.
