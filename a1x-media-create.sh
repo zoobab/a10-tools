@@ -1,8 +1,18 @@
 #!/bin/bash
 # Usage ./makeSD.sh /dev/sdx hwpack rootfs
 
-logfile=a1x-media-create.log
+now="`date +%Y%m%d-%H%M%S`"
+logfile="a1x-media-create_$now.log"
+exec 2>&1> >(tee -a $logfile)
+
 hwpack_update_only=0
+
+banner () {
+echo "================================================================"
+echo "$1"
+echo "================================================================"
+}
+
 
 checkSyntax () {
 	if [ -z $1 ] | [ -z $2 ] | [ -z $3 ]; then
@@ -51,16 +61,16 @@ partitionSD () {
     fi
 
 	echo "Delete Existing Partition Table"
-	sudo dd if=/dev/zero of=$1 bs=1M count=1 >> ${logfile} 
+	sudo dd if=/dev/zero of=$1 bs=1M count=1
 
 	echo "Creating Partitions"
-	sudo parted $1 --script mklabel msdos >> ${logfile}
+	sudo parted $1 --script mklabel msdos
 	if [ $? -ne 0 ]; then
 		echo "Failed to create label for $1"
 		exit 1
 	fi 
 	echo "Partition 1 - ${subdevice}1"
-	sudo parted $1 --script mkpart primary fat32 2048s 16MB >> ${logfile}
+	sudo parted $1 --script mkpart primary fat32 2048s 16MB
 	if [ $? -ne 0 ]; then
 		echo "Failed to create ${subdevice}1 partition" 
 		exit 1
@@ -68,19 +78,19 @@ partitionSD () {
 	vfat_end=` sudo fdisk -lu $1 | grep ${subdevice}1 | awk '{ print $3 }' `
 	ext4_offset=`expr $vfat_end + 1`
 	echo "Partition 2 (Starts at sector No. $ext4_offset)"
-	sudo parted $1 --script mkpart primary ext4 ${ext4_offset}s -- -1 >> ${logfile}
+	sudo parted $1 --script mkpart primary ext4 ${ext4_offset}s -- -1
 	if [ $? -ne 0 ]; then
 		echo "Failed to create ${subdevice}2 partition"
 		exit 1
 	fi 
 	echo "Format Partition 1 to VFAT"
-	sudo mkfs.vfat -I ${subdevice}1 >> ${logfile}
+	sudo mkfs.vfat -I ${subdevice}1
 	if [ $? -ne 0 ]; then
 		echo "Failed to format ${subdevice}1 partition"
 		exit 1
 	fi 
 	echo "Format Partition 2 to EXT-4"
-	sudo mkfs.ext4  ${subdevice}2 >> ${logfile}
+	sudo mkfs.ext4  ${subdevice}2
 	if [ $? -ne 0 ]; then
 		echo "Failed to format ${subdevice}2 partition"
 		exit 1
@@ -91,7 +101,7 @@ extractHWPack () {
     echo "Extracting HW Pack $1"
     mkdir -p hwpack
     pushd hwpack
-    7z x ../$1 >> ${logfile}
+    7z x ../$1
     popd
 }
 
@@ -142,19 +152,19 @@ mountPartitions ()
     fi
 
 	echo "Mount SD card partitions"
-	mkdir -p mntSDvfat mntSDrootfs >> ${logfile}
+	mkdir -p mntSDvfat mntSDrootfs
 	if [ $? -ne 0 ]; then
 		echo "Failed to create SD card mount points"
 		cleanup
 	fi 
 	echo "Mount VFAT Parition (SD)" 
-	sudo mount ${subdevice}1 mntSDvfat >> ${logfile}
+	sudo mount ${subdevice}1 mntSDvfat
 	if [ $? -ne 0 ]; then
 		echo "Failed to mount VFAT partition (SD)"
 		cleanup
 	fi 
 	echo "Mount EXT4 Parition (SD)" 
-	sudo mount ${subdevice}2 mntSDrootfs >> ${logfile}
+	sudo mount ${subdevice}2 mntSDrootfs
 	if [ $? -ne 0 ]; then
 		echo "Failed to mount EXT4 partition (SD)"
 		cleanup
@@ -166,16 +176,16 @@ umountPart() {
 		mounted=`mount | grep $1`
 		if [ ! -z mounted ]; then
 			echo "Umount $2"
-			sudo umount $1 >> ${logfile}
+			sudo umount $1
 			if [ $? -ne 0 ]; then
 				echo "Failed to umount $2)"
 			else
 				echo "Delete $1"
-				rm -rf $1 >> ${logfile}
+				rm -rf $1
 			fi
 		else
 			echo "Delete $1"
-			rm -rf $1 >> ${logfile}
+			rm -rf $1
 		fi	 
 	fi
 }
@@ -183,18 +193,18 @@ umountPart() {
 copyData () 
 {
 	echo "Copy VFAT partition files to SD Card"
-	sudo cp hwpack/kernel/uImage mntSDvfat >> ${logfile}
+	sudo cp hwpack/kernel/uImage mntSDvfat
 	if [ $? -ne 0 ]; then
 		echo "Failed to copy VFAT partition data to SD Card"
 		cleanup
 	fi 
-	sudo cp hwpack/kernel/*.bin mntSDvfat/script.bin >> ${logfile}
+	sudo cp hwpack/kernel/*.bin mntSDvfat/script.bin
 	if [ $? -ne 0 ]; then
 		echo "Failed to copy VFAT partition data to SD Card"
 		cleanup
 	fi
 	if [ -f hwpack/kernel/*.scr ]; then 
-		sudo cp hwpack/kernel/*.scr mntSDvfat/boot.scr >> ${logfile}
+		sudo cp hwpack/kernel/*.scr mntSDvfat/boot.scr
 		if [ $? -ne 0 ]; then
 			echo "Failed to copy VFAT partition data to SD Card"
 			cleanup
@@ -205,10 +215,10 @@ copyData ()
 	    echo "Copy rootfs partition files to SD Card"
             if [ -d rootfs.tmp/etc ]; then
                echo "Standard rootfs"
-	       sudo cp -a rootfs.tmp/* mntSDrootfs >> ${logfile}
+	       sudo cp -a rootfs.tmp/* mntSDrootfs
             elif [ -d rootfs.tmp/binary/boot/filesystem.dir ]; then
                echo "Linaro rootfs"
-	       sudo cp -a rootfs.tmp/binary/boot/filesystem.dir/* mntSDrootfs >> ${logfile}
+	       sudo cp -a rootfs.tmp/binary/boot/filesystem.dir/* mntSDrootfs
             else
                echo "Unsupported rootfs"
                exit 1
@@ -227,7 +237,7 @@ copyData ()
 			mv hwpack/rootfs/lib hwpack/rootfs/usr
 		fi
 	fi
-        sudo cp -a hwpack/rootfs/* mntSDrootfs >> ${logfile}
+        sudo cp -a hwpack/rootfs/* mntSDrootfs
 	if [ $? -ne 0 ]; then
 		echo "Failed to copy rootfs hwpack files to SD Card"
 		cleanup
@@ -248,7 +258,7 @@ cleanup ()
 }
 
 # "main"
-echo "a1x-media-create log file" > ${logfile} 
+echo "a1x-media-create log file"
 checkSyntax $1 $2 $3
 umountSD $1
 if [ ${hwpack_update_only} -eq 0 ]; then 
