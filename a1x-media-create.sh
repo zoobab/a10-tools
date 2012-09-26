@@ -2,7 +2,7 @@
 # Usage ./makeSD.sh /dev/sdx hwpack rootfs
 
 now="`date +%Y%m%d-%H%M%S`"
-logfile="a1x-media-create_$now.log"
+logfile="logs/a1x-media-create_$now.log"
 exec 2>&1> >(tee -a $logfile)
 
 hwpack_update_only=0
@@ -258,7 +258,7 @@ cleanup ()
 }
 
 # "main"
-echo "a1x-media-create log file"
+#banner "a1x-media-create log file"
 checkSyntax $1 $2 $3
 umountSD $1
 if [ ${hwpack_update_only} -eq 0 ]; then 
