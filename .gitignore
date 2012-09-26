@@ -1,2 +1,4 @@
 logs/*
 dl/*
+hwpack/
+rootfs.tmp/
